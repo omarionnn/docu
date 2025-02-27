@@ -1,0 +1,384 @@
+.document-customizer {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.document-customizer.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-style: italic;
+  color: #666;
+}
+
+.document-customizer.error {
+  color: #d32f2f;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid #f5c6cb;
+  background-color: #f8d7da;
+  border-radius: 4px;
+}
+
+.document-info {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.document-info h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.document-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s;
+}
+
+.tab-button.active {
+  border-bottom-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.tab-button:hover:not(.active) {
+  background-color: #f5f5f5;
+}
+
+/* Rules Tab */
+.rules-tab, .context-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.suggest-button, .apply-button, .analyze-button, .apply-adaptations-button, .add-field-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.suggest-button {
+  background-color: #f0f4ff;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.suggest-button:hover:not(:disabled) {
+  background-color: #e1e7ff;
+}
+
+.apply-button, .analyze-button, .apply-adaptations-button {
+  background-color: var(--primary-color);
+  color: white;
+  margin-top: 15px;
+}
+
+.apply-button:hover:not(:disabled), .analyze-button:hover:not(:disabled), .apply-adaptations-button:hover:not(:disabled) {
+  background-color: #3a5bd9;
+}
+
+.apply-button:disabled, .suggest-button:disabled, .analyze-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.add-field-button {
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px dashed #ccc;
+  margin-top: 10px;
+}
+
+.add-field-button:hover {
+  background-color: #ebebeb;
+}
+
+.no-rules {
+  color: #666;
+  font-style: italic;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.rules-list, .suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rule-item, .suggestion-item {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.rule-item.inactive {
+  opacity: 0.6;
+}
+
+.rule-header, .suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.rule-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.rule-description, .suggestion-item p {
+  color: #666;
+  margin: 5px 0 10px;
+  font-size: 14px;
+}
+
+.rule-details {
+  font-size: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.condition, .action {
+  padding: 8px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.remove-rule, .add-rule {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.remove-rule:hover {
+  color: #d32f2f;
+  background-color: #ffebee;
+}
+
+.add-rule {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.add-rule:hover {
+  background-color: #e3f2fd;
+}
+
+/* Context Analysis Tab */
+.context-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.context-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.context-field label {
+  font-size: 14px;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.context-field input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.context-field input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.analysis-results {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.analysis-section {
+  margin-bottom: 25px;
+}
+
+.analysis-section h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.key-factors {
+  list-style-type: disc;
+  margin-left: 20px;
+  color: #555;
+}
+
+.adaptations-list, .risks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adaptation-item {
+  display: flex;
+  gap: 15px;
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.type-badge.add {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-badge.modify {
+  background-color: #fff8e1;
+  color: #f57f17;
+}
+
+.type-badge.remove {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.adaptation-details strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.content-preview {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.risk-item {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.risk-item.high {
+  background-color: #ffebee;
+  border-left: 4px solid #d32f2f;
+}
+
+.risk-item.medium {
+  background-color: #fff8e1;
+  border-left: 4px solid #ffa000;
+}
+
+.risk-item.low {
+  background-color: #e8f5e9;
+  border-left: 4px solid #388e3c;
+}
+
+.risk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.severity-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.risk-item.high .severity-badge {
+  background-color: #ef5350;
+  color: white;
+}
+
+.risk-item.medium .severity-badge {
+  background-color: #ffa726;
+  color: white;
+}
+
+.risk-item.low .severity-badge {
+  background-color: #66bb6a;
+  color: white;
+}
+
+.mitigation {
+  margin: 0;
+  font-size: 14px;
+}

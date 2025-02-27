@@ -1,0 +1,507 @@
+.user-data-manager {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s;
+}
+
+.tab-button.active {
+  border-bottom-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.tab-button:hover:not(.active) {
+  background-color: #f5f5f5;
+}
+
+/* Form sections */
+.form-section {
+  margin-bottom: 25px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.form-section h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.section-description {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+  margin-bottom: 5px;
+}
+
+.form-group label {
+  font-size: 14px;
+  color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.form-group input.invalid {
+  border-color: #d32f2f;
+  background-color: #fff8f8;
+}
+
+.validation-error {
+  color: #d32f2f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.validation-suggestions {
+  color: #1976d2;
+  font-size: 12px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.validate-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 5px;
+}
+
+.validate-button:hover {
+  text-decoration: underline;
+  color: var(--primary-color);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.save-button,
+.detect-duplicates-button,
+.search-button,
+.import-button,
+.add-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.save-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.save-button:hover:not(:disabled) {
+  background-color: #3a5bd9;
+}
+
+.detect-duplicates-button,
+.search-button,
+.add-button {
+  background-color: #f0f4ff;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.detect-duplicates-button:hover:not(:disabled),
+.search-button:hover:not(:disabled),
+.add-button:hover:not(:disabled) {
+  background-color: #e3eaff;
+}
+
+.import-button {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.import-button:hover {
+  background-color: #d7ecd9;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Duplicate results */
+.duplicate-results {
+  background-color: #e3f2fd;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+  border: 1px solid #bbdefb;
+}
+
+.duplicate-results h4 {
+  margin: 0 0 10px 0;
+  color: #1976d2;
+}
+
+.duplicate-results p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Public data section */
+.public-data-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.public-data-results {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.public-data-results h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.result-card {
+  background-color: white;
+  border-radius: 6px;
+  padding: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.result-source {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.result-properties {
+  margin-bottom: 15px;
+}
+
+.result-property {
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.property-name {
+  font-weight: 500;
+  text-transform: capitalize;
+  margin-right: 5px;
+}
+
+.property-value {
+  color: #333;
+}
+
+/* Data sources */
+.add-source-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  align-items: end;
+}
+
+.sources-list,
+.variables-list,
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.source-card,
+.variable-card,
+.history-card {
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.source-header,
+.variable-header,
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.source-type {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.type-api {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.type-database {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-file {
+  background-color: #fff8e1;
+  color: #f57f17;
+}
+
+.type-manual {
+  background-color: #f5f5f5;
+  color: #5f6368;
+}
+
+.source-description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.source-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 15px;
+}
+
+.source-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.source-status.active {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.source-status.inactive {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.source-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-button,
+.delete-button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.edit-button {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.edit-button:hover {
+  background-color: #e0e0e0;
+}
+
+.delete-button {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.delete-button:hover {
+  background-color: #ffcdd2;
+}
+
+/* Variables tab */
+.variable-frequency {
+  font-size: 12px;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.variable-value {
+  font-size: 14px;
+  margin-top: 10px;
+  background-color: #f9f9f9;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* History tab */
+.history-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.action-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.action-update {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.action-create {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.action-delete {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.action-merge {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.history-entity {
+  font-size: 12px;
+  color: #333;
+}
+
+.history-date {
+  font-size: 12px;
+  color: #666;
+}
+
+.history-data {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.data-changes {
+  margin-top: 5px;
+}
+
+.data-changes ul {
+  list-style: none;
+  padding: 0;
+  margin: 5px 0 0 0;
+}
+
+.data-changes li {
+  margin-bottom: 3px;
+}
+
+.history-source {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.no-items {
+  text-align: center;
+  color: #666;
+  margin: 30px 0;
+  font-style: italic;
+}
