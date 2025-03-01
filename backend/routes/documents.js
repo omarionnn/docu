@@ -49,33 +49,46 @@ const upload = multer({
  */
 router.post('/templates/upload', auth, upload.single('document'), async (req, res) => {
   try {
+    console.log('File upload request received:', req.body);
+    console.log('File details:', req.file);
+    
     if (!req.file) {
+      console.log('No file found in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const filePath = req.file.path;
-    const parsedDocument = await documentParser.parseDocument(filePath);
+    console.log('Processing file at path:', filePath);
     
-    // Create template from parsed document
-    const template = new Template({
-      name: req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname)),
-      description: req.body.description || '',
-      content: parsedDocument.content,
-      fileType: path.extname(req.file.originalname).substring(1),
-      originalFileName: req.file.originalname,
-      variables: parsedDocument.variables,
-      metadata: parsedDocument.metadata,
-      category: req.body.category || 'General',
-      tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
-      owner: req.user._id
-    });
+    try {
+      const parsedDocument = await documentParser.parseDocument(filePath);
+      console.log('Document parsed successfully, variables found:', parsedDocument.variables.length);
+      
+      // Create template from parsed document
+      const template = new Template({
+        name: req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname)),
+        description: req.body.description || '',
+        content: parsedDocument.content,
+        fileType: path.extname(req.file.originalname).substring(1),
+        originalFileName: req.file.originalname,
+        variables: parsedDocument.variables,
+        metadata: parsedDocument.metadata,
+        category: req.body.category || 'General',
+        tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : [],
+        owner: req.user._id
+      });
 
-    await template.save();
-    
-    res.status(201).json({ 
-      message: 'Template created successfully',
-      template
-    });
+      await template.save();
+      console.log('Template saved successfully with ID:', template._id);
+      
+      res.status(201).json({ 
+        message: 'Template created successfully',
+        template
+      });
+    } catch (parseError) {
+      console.error('Error parsing document:', parseError);
+      res.status(422).json({ message: 'Failed to process document', error: parseError.message });
+    }
   } catch (error) {
     console.error('Error creating template:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -429,6 +442,156 @@ router.delete('/documents/:id', auth, async (req, res) => {
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error deleting document:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/documents/preview
+ * @desc Preview document with rules applied (without saving)
+ * @access Private
+ */
+router.post('/documents/preview', auth, async (req, res) => {
+  try {
+    const { documentId, rules } = req.body;
+    
+    if (!documentId) {
+      return res.status(400).json({ message: 'Document ID is required' });
+    }
+    
+    // Get the document
+    const document = await Document.findById(documentId)
+      .populate('template');
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    // Check if user has access to this document
+    if (document.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Create a temporary copy of the document for preview
+    const documentCopy = { ...document.toObject() };
+    
+    // If rules provided, apply them to the copy without saving
+    if (rules && rules.length > 0) {
+      let content = documentCopy.content;
+      
+      // Process each rule
+      for (const rule of rules) {
+        const { condition, action, targetVariables } = rule;
+        
+        // Dummy evaluation for preview (should be replaced with actual evaluation)
+        const conditionMet = true;
+        
+        if (conditionMet) {
+          // Apply simple rule actions for preview
+          if (action === 'hide' && targetVariables) {
+            for (const targetVar of targetVariables) {
+              const pattern = new RegExp(`<!--\\s*BEGIN\\s*${targetVar}\\s*-->([\\s\\S]*?)<!--\\s*END\\s*${targetVar}\\s*-->`, 'g');
+              content = content.replace(pattern, '');
+            }
+          } else if (action === 'show' && targetVariables) {
+            for (const targetVar of targetVariables) {
+              const pattern = new RegExp(`<!--\\s*BEGIN\\s*${targetVar}\\s*-->([\\s\\S]*?)<!--\\s*END\\s*${targetVar}\\s*-->`, 'g');
+              content = content.replace(pattern, (match, p1) => p1);
+            }
+          } else if (action === 'insertText' && targetVariables) {
+            for (const targetVar of targetVariables) {
+              if (targetVar.includes(':')) {
+                const [variable, insertText] = targetVar.split(':');
+                content = content.replace(`{{${variable}}}`, insertText);
+              }
+            }
+          }
+        }
+      }
+      
+      // Set the updated content
+      documentCopy.content = content;
+    }
+    
+    res.json({
+      content: documentCopy.content
+    });
+  } catch (error) {
+    console.error('Error generating document preview:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/documents/generate-text
+ * @desc Generate text using AI for a document
+ * @access Private
+ */
+router.post('/documents/generate-text', auth, async (req, res) => {
+  try {
+    const { documentId, prompt } = req.body;
+    
+    if (!documentId || !prompt) {
+      return res.status(400).json({ message: 'Document ID and prompt are required' });
+    }
+    
+    // Get the document
+    const document = await Document.findById(documentId)
+      .populate('template');
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    // Check if user has access to this document
+    if (document.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Simple AI text generation simulation for demo purposes
+    // In production, this would call an actual AI service
+    const sampleTexts = [
+      "This document is subject to the terms and conditions outlined herein. All parties acknowledge and agree to these provisions.",
+      "The data protection measures implemented comply with relevant regulations, ensuring the security and privacy of all information processed.",
+      "In accordance with financial regulations, all transactions will be recorded and subject to audit as required by law.",
+      "This agreement constitutes the entire understanding between parties and supersedes all prior communications regarding this matter."
+    ];
+    
+    const generatedText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+    
+    res.json({
+      generatedText
+    });
+  } catch (error) {
+    console.error('Error generating text:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/documents/templates/:id
+ * @desc Get a template by ID
+ * @access Private
+ */
+router.get('/documents/templates/:id', auth, async (req, res) => {
+  try {
+    const templateId = req.params.id;
+    
+    // Get the template
+    const template = await Template.findById(templateId);
+    
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    
+    // Check if user has access to this template
+    if (!template.isPublic && template.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    res.json(template);
+  } catch (error) {
+    console.error('Error fetching template:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

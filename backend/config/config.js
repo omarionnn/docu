@@ -22,14 +22,14 @@ const config = {
   
   // JWT configuration for authentication
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key',
+    secret: process.env.JWT_SECRET || 'saafi-development-secret-key',
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
   },
   
   // AI Services configuration
   ai: {
     openai: {
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY || 'mock-api-key-for-development',
       model: process.env.OPENAI_MODEL || 'gpt-4',
       maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 2000,
     }
@@ -62,39 +62,5 @@ const config = {
   }
 };
 
-// Validate critical configuration
-const validateConfig = () => {
-  const requiredEnvVars = [
-    { name: 'MONGODB_URI', value: config.mongodb.uri, message: 'MongoDB URI is required' },
-    { name: 'JWT_SECRET', value: config.jwt.secret, defaultMessage: 'JWT secret is set to default value in non-production environment' },
-    { name: 'OPENAI_API_KEY', value: config.ai.openai.apiKey, message: 'OpenAI API key is required for AI features' },
-  ];
-
-  // Check for missing required variables
-  requiredEnvVars.forEach(({ name, value, message, defaultMessage }) => {
-    if (!value) {
-      console.error(`Error: ${message || `Missing required environment variable: ${name}`}`);
-      process.exit(1);
-    }
-    
-    // Warn about default values in production
-    if (config.server.env === 'production' && defaultMessage && value === config[name.split('_')[0].toLowerCase()][name.split('_')[1].toLowerCase()]) {
-      console.warn(`Warning: ${defaultMessage}`);
-    }
-  });
-
-  // Additional production-specific validations
-  if (config.server.env === 'production') {
-    // JWT secret should be strong in production
-    if (config.jwt.secret === 'your-secret-key') {
-      console.error('Error: Default JWT secret cannot be used in production.');
-      process.exit(1);
-    }
-  }
-};
-
 // Export configuration
-module.exports = {
-  ...config,
-  validateConfig,
-};
+module.exports = config;

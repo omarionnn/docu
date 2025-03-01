@@ -1,33 +1,4 @@
-  // Import mongoose - in development mode we'll use mock models instead of real DB
-  let mongoose;
-  try {
-    mongoose = require('mongoose');
-  } catch (error) {
-    // Create a mock schema/model implementation for development without MongoDB
-    console.log('Using mock mongoose implementation for development');
-    mongoose = {
-      Schema: function(definition) {
-        this.definition = definition;
-        this.pre = function() { return this; };
-        return this;
-      },
-      model: function(name, schema) {
-        return {
-          name,
-          schema,
-          findById: () => Promise.resolve({}),
-          find: () => Promise.resolve([]),
-          create: (data) => Promise.resolve(data)
-        };
-      },
-      Types: {
-        ObjectId: {
-          isValid: (id) => typeof id === 'string' && id.length > 10
-        },
-        Mixed: 'mixed'
-      }
-    };
-  }
+ const mongoose = require('mongoose');
 
   /**
    * Condition Schema - For conditional logic in templates and documents

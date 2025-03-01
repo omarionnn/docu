@@ -1,6 +1,10 @@
+// Importing models (in development, we'll use mock data instead of DB)
 const { Template, Document } = require('../models/Document');
 const aiService = require('./aiService');
 const mongoose = require('mongoose');
+
+// For development, fallback to mock implementations if MongoDB functions aren't available
+const ObjectId = mongoose.Types.ObjectId || { isValid: (id) => typeof id === 'string' && id.length > 10 };
 
 /**
  * Document Customizer Service

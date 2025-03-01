@@ -1,174 +1,309 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import './LegalTermExplainer.css';
-
-/**
- * Component for explaining legal terms in documents
- */
-const LegalTermExplainer = ({ documentContent, documentId }) => {
-  const [legalTerms, setLegalTerms] = useState([]);
-  const [selectedTerm, setSelectedTerm] = useState(null);
-  const [explanation, setExplanation] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Fetch legal terms when document content changes
-  useEffect(() => {
-    if (documentContent) {
-      identifyLegalTerms();
-    } else {
-      setInitialLoading(false);
-    }
-  }, [documentContent]);
+cat > frontend/src/components/DocumentUpload.js << 'EOF'
+  import React, { useState, useRef, useEffect } from 'react';
+  import axios from 'axios';
+  import './DocumentUpload.css';
 
   /**
-   * Identify legal terms in the document
+   * Component for uploading and creating document templates
    */
-  const identifyLegalTerms = async () => {
-    try {
-      setInitialLoading(true);
+  const DocumentUpload = () => {
+    // State for file and form data
+    const [file, setFile] = useState(null);
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('General');
+    const [tags, setTags] = useState('');
+    const [categories, setCategories] = useState(['General', 'Legal', 'HR', 'Finance', 'Education', 'Healthcare']);
+
+    // State for UI feedback
+    const [dragActive, setDragActive] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [processingStatus, setProcessingStatus] = useState('');
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
+
+    // Ref for file input
+    const fileInputRef = useRef(null);
+
+    // Reset form when upload is successful
+    useEffect(() => {
+      if (success) {
+        const timer = setTimeout(() => {
+          setSuccess(false);
+          setFile(null);
+          setName('');
+          setDescription('');
+          setTags('');
+          setCategory('General');
+          setUploadProgress(0);
+          setProcessingStatus('');
+        }, 3000);
+
+        return () => clearTimeout(timer);
+      }
+    }, [success]);
+
+    // Handle file selection
+    const handleFileChange = (e) => {
+      const selectedFile = e.target.files[0];
+
+      if (selectedFile) {
+        validateFile(selectedFile);
+      }
+    };
+
+    // Validate file type and size
+    const validateFile = (selectedFile) => {
+      const validTypes = ['.pdf', '.docx', '.txt'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+
+      const fileExtension = '.' + selectedFile.name.split('.').pop().toLowerCase();
+
+      if (!validTypes.includes(fileExtension)) {
+        setError(`Invalid file type. Only PDF, DOCX, and TXT files are allowed.`);
+        return;
+      }
+
+      if (selectedFile.size > maxSize) {
+        setError(`File size exceeds 10MB limit.`);
+        return;
+      }
+
       setError(null);
-      
-      const response = await axios.post('/api/ai/identify-legal-terms', {
-        content: documentContent,
-        documentId
-      });
-      
-      setLegalTerms(response.data);
-    } catch (err) {
-      console.error('Error identifying legal terms:', err);
-      setError('Failed to identify legal terms. Please try again.');
-    } finally {
-      setInitialLoading(false);
-    }
-  };
+      setFile(selectedFile);
 
-  /**
-   * Get explanation for a specific term
-   */
-  const getExplanation = useCallback(async (term) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Find the term context
-      const termData = legalTerms.find(t => t.term === term);
-      const context = termData?.context || '';
-      
-      const response = await axios.post('/api/ai/explain-legal-term', {
-        term,
-        context,
-        documentId
-      });
-      
-      setExplanation(response.data);
-    } catch (err) {
-      console.error('Error getting term explanation:', err);
-      setError('Failed to get explanation. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [legalTerms, documentId]);
+      // Set default name based on file name (without extension)
+      if (!name) {
+        const fileName = selectedFile.name.split('.').slice(0, -1).join('.');
+        setName(fileName);
+      }
+    };
 
-  /**
-   * Handle term selection
-   */
-  const handleTermSelect = (term) => {
-    setSelectedTerm(term);
-    getExplanation(term);
-  };
+    // Handle drag events
+    const handleDrag = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  // Sort terms by complexity (highest first)
-  const sortedTerms = [...legalTerms].sort((a, b) => b.complexity - a.complexity);
+      if (e.type === 'dragenter' || e.type === 'dragover') {
+        setDragActive(true);
+      } else if (e.type === 'dragleave') {
+        setDragActive(false);
+      }
+    };
 
-  if (initialLoading) {
-    return <div className="legal-term-explainer loading">Analyzing document for legal terms...</div>;
-  }
+    // Handle drop event
+    const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
 
-  if (error && !legalTerms.length) {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        validateFile(e.dataTransfer.files[0]);
+      }
+    };
+
+    // Handle click on the drag-drop area
+    const handleButtonClick = () => {
+      fileInputRef.current.click();
+    };
+
+    // Handle form submission
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+
+      if (!file) {
+        setError('Please select a file to upload.');
+        return;
+      }
+
+      if (!name.trim()) {
+        setError('Please enter a template name.');
+        return;
+      }
+
+      try {
+        setUploading(true);
+        setError(null);
+        setUploadProgress(0);
+        setProcessingStatus('Uploading file...');
+
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('name', name);
+        formData.append('description', description);
+        formData.append('category', category);
+        formData.append('tags', tags);
+
+        const response = await axios.post('/api/templates/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(progress);
+
+            if (progress === 100) {
+              setProcessingStatus('Processing document...');
+            }
+          }
+        });
+
+        setProcessingStatus('Template created successfully!');
+        setSuccess(true);
+        console.log('Template created:', response.data);
+
+      } catch (error) {
+        console.error('Error creating template:', error);
+        setError(error.response?.data?.message || 'Failed to create template. Please try again.');
+      } finally {
+        setUploading(false);
+      }
+    };
+
     return (
-      <div className="legal-term-explainer error">
-        <p>{error}</p>
-        <button onClick={identifyLegalTerms}>Try Again</button>
-      </div>
-    );
-  }
-
-  if (!documentContent) {
-    return <div className="legal-term-explainer empty">No document content to analyze</div>;
-  }
-
-  return (
-    <div className="legal-term-explainer">
-      <div className="term-list-container">
-        <h3>Legal Terms &amp; Jargon</h3>
-        {legalTerms.length === 0 ? (
-          <p className="no-terms">No complex legal terms identified in this document.</p>
-        ) : (
-          <ul className="term-list">
-            {sortedTerms.map((term, index) => (
-              <li 
-                key={index} 
-                className={`term-item complexity-${term.complexity} ${selectedTerm === term.term ? 'selected' : ''}`}
-                onClick={() => handleTermSelect(term.term)}
-              >
-                <span className="term-text">{term.term}</span>
-                <span className="complexity-indicator" title={`Complexity: ${term.complexity}/5`}>
-                  {Array(term.complexity).fill('●').join('')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      
-      <div className="explanation-container">
-        {selectedTerm ? (
-          loading ? (
-            <div className="loading-explanation">Loading explanation...</div>
-          ) : explanation ? (
-            <div className="term-explanation">
-              <h3>{explanation.term}</h3>
-              <div className="explanation-section">
-                <h4>Simple Explanation</h4>
-                <p>{explanation.explanation}</p>
-              </div>
-              <div className="explanation-section">
-                <h4>Why It's Important</h4>
-                <p>{explanation.importance}</p>
-              </div>
-              <div className="explanation-section">
-                <h4>What It Means For You</h4>
-                <p>{explanation.implications}</p>
-              </div>
-              {explanation.relatedTerms?.length > 0 && (
-                <div className="related-terms">
-                  <h4>Related Terms</h4>
-                  <ul>
-                    {explanation.relatedTerms.map((term, index) => (
-                      <li key={index} onClick={() => handleTermSelect(term)}>
-                        {term}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : error ? (
-            <div className="error-explanation">
-              <p>{error}</p>
-              <button onClick={() => getExplanation(selectedTerm)}>Try Again</button>
-            </div>
-          ) : null
-        ) : (
-          <div className="no-term-selected">
-            <p>Select a legal term from the list to get a simple explanation.</p>
+      <div className="document-upload-container">
+        {success && (
+          <div className="success-message">
+            <p>Template created successfully!</p>
           </div>
         )}
-      </div>
-    </div>
-  );
-};
 
-export default LegalTermExplainer;
+        {error && (
+          <div className="error-message">
+            <p>{error}</p>
+            <button className="close-error" onClick={() => setError(null)}>✕</button>
+          </div>
+        )}
+
+        <h2>Create New Template</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div
+            className={`drag-drop-area ${dragActive ? 'active' : ''} ${file ? 'has-file' : ''}`}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            onClick={handleButtonClick}
+          >
+            <input
+              type="file"
+              onChange={handleFileChange}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept=".pdf,.docx,.txt"
+            />
+
+            {file ? (
+              <div className="file-preview">
+                <div className="file-icon">
+                  {file.name.endsWith('.pdf') ? '📄' : file.name.endsWith('.docx') ? '📝' : '📃'}
+                </div>
+                <div className="file-info">
+                  <span className="file-name">{file.name}</span>
+                  <span className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                </div>
+                <button
+                  type="button"
+                  className="remove-file"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="upload-prompt">
+                <div className="upload-icon">📁</div>
+                <p>Drag & drop your document here, or click to browse</p>
+                <span className="file-types">Supports PDF, DOCX, and TXT (Max 10MB)</span>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="name">Template Name*</label>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter template name"
+              required
+              disabled={uploading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter template description"
+              rows="3"
+              disabled={uploading}
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="category">Category</label>
+              <select
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={uploading}
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="tags">Tags</label>
+              <input
+                type="text"
+                id="tags"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="Enter tags separated by commas"
+                disabled={uploading}
+              />
+            </div>
+          </div>
+
+          {uploading && (
+            <div className="upload-progress">
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <div className="progress-status">
+                <span>{uploadProgress}% - {processingStatus}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="form-actions">
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={!file || uploading}
+            >
+              {uploading ? 'Creating Template...' : 'Create Template'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
+  export default DocumentUpload;
+  EOF
