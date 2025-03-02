@@ -11,12 +11,13 @@ const config = require('./config/config');
 const documentRoutes = require('./routes/documents');
 const customizationRoutes = require('./routes/customization');
 const dataManagementRoutes = require('./routes/dataManagement');
+const signatureRoutes = require('./routes/signatures');
 // We'll add more routes as we implement other components
 
 // Initialize Express app
 const app = express();
-// Try alternative ports if the primary port is in use
-const PORT = process.env.PORT || config.server.port || 5000;
+// Use explicit port configuration - no auto-detection
+const PORT = 5009; // Using port 5009 explicitly
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -25,13 +26,21 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3009', 'http://localhost:5005', 'http://localhost:5009'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev')); // Logging
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Basic routes for testing
 app.get('/api/status', (req, res) => {
@@ -62,7 +71,50 @@ app.use((req, res, next) => {
 
 // Basic status endpoint
 app.get('/api/status', (req, res) => {
-  res.json({ status: 'ok', message: 'API is running' });
+  // Determine if we're in mock mode
+  const useMockMode = !process.env.CLAUDE_API_KEY || 
+                      process.env.CLAUDE_API_KEY === 'YOUR_CLAUDE_API_KEY_HERE' || 
+                      process.env.CLAUDE_API_KEY === 'mock-key';
+                      
+  res.json({ 
+    status: 'ok', 
+    message: 'API is running',
+    ai: {
+      provider: 'claude',
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240229',
+      apiConfigured: !useMockMode,
+      mockMode: useMockMode,
+      info: 'Using Claude integration for all AI features'
+    }
+  });
+});
+
+// Test endpoint for Claude AI
+app.post('/api/test/claude', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ message: 'Prompt is required' });
+    }
+    
+    console.log('Testing Claude AI with prompt:', prompt);
+    const result = await aiService.generateText(prompt, { name: 'Test Document' });
+    
+    res.json({
+      success: true,
+      result,
+      aiProvider: 'claude'
+    });
+  } catch (error) {
+    console.error('Error testing Claude AI:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error testing Claude AI', 
+      error: error.message,
+      usingMock: !process.env.CLAUDE_API_KEY || process.env.CLAUDE_API_KEY === 'YOUR_CLAUDE_API_KEY_HERE' || process.env.CLAUDE_API_KEY === 'mock-key'
+    });
+  }
 });
 
 // Direct route handlers for mock data
@@ -249,11 +301,255 @@ app.use((req, res, next) => {
   next();
 });
 
+// Set mock auth for all routes
+const auth = require('./middleware/auth');
+
 // Routes
 // Use these routes after our direct handlers
 app.use('/api', documentRoutes);
 app.use('/api/customization', customizationRoutes);
 app.use('/api/data', dataManagementRoutes);
+app.use('/api/signatures', signatureRoutes);
+
+// Mock signature routes for demonstration
+app.get('/api/signatures/requests', (req, res) => {
+  // Return mock signature requests
+  const mockRequests = [
+    {
+      _id: 'req123',
+      name: 'Employment Contract - John Smith',
+      document: {
+        _id: 'doc123',
+        name: 'Employment Contract'
+      },
+      status: 'sent',
+      createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      expiresAt: new Date(Date.now() + 2592000000).toISOString(), // 30 days from now
+      signers: [
+        {
+          name: 'John Smith',
+          email: 'john@example.com',
+          role: 'Signer',
+          order: 1,
+          signature: null // not signed yet
+        },
+        {
+          name: 'Jane Doe',
+          email: 'jane@example.com',
+          role: 'Approver',
+          order: 2,
+          signature: null // not signed yet
+        }
+      ],
+      signatureOrder: true,
+      message: 'Please review and sign this employment contract'
+    },
+    {
+      _id: 'req456',
+      name: 'NDA - Partner Company',
+      document: {
+        _id: 'doc456',
+        name: 'Non-Disclosure Agreement'
+      },
+      status: 'completed',
+      createdAt: new Date(Date.now() - 691200000).toISOString(), // 8 days ago
+      completedAt: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
+      expiresAt: new Date(Date.now() + 1296000000).toISOString(), // 15 days from now
+      signers: [
+        {
+          name: 'Robert Johnson',
+          email: 'robert@example.com',
+          role: 'Signer',
+          order: 1,
+          signature: 'sig789' // signed
+        }
+      ],
+      signatureOrder: false,
+      message: 'Please sign the NDA for our upcoming partnership'
+    }
+  ];
+  
+  res.json({ requests: mockRequests });
+});
+
+app.get('/api/signatures/requests/:id', (req, res) => {
+  const requestId = req.params.id;
+  
+  // Return a mock signature request
+  const mockRequest = {
+    _id: requestId,
+    name: 'Employment Contract - John Smith',
+    document: {
+      _id: 'doc123',
+      name: 'Employment Contract'
+    },
+    status: 'sent',
+    createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    expiresAt: new Date(Date.now() + 2592000000).toISOString(), // 30 days from now
+    signers: [
+      {
+        name: 'John Smith',
+        email: 'john@example.com',
+        role: 'Signer',
+        order: 1,
+        signature: null // not signed yet
+      },
+      {
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        role: 'Approver',
+        order: 2,
+        signature: null // not signed yet
+      }
+    ],
+    signatureOrder: true,
+    message: 'Please review and sign this employment contract'
+  };
+  
+  res.json(mockRequest);
+});
+
+app.post('/api/signatures/requests/:id/remind', (req, res) => {
+  const requestId = req.params.id;
+  
+  // Return success
+  res.json({ 
+    success: true, 
+    message: 'Reminders sent successfully',
+    remindersCount: 1
+  });
+});
+
+app.post('/api/signatures/requests/:id/cancel', (req, res) => {
+  const requestId = req.params.id;
+  
+  // Return updated request with canceled status
+  res.json({
+    _id: requestId,
+    status: 'canceled',
+    cancelReason: req.body.reason || 'Request canceled by user'
+  });
+});
+
+app.get('/api/signatures/sign/:token', (req, res) => {
+  const token = req.params.token;
+  
+  // Return mock signing data
+  res.json({
+    request: {
+      _id: 'req123',
+      name: 'Employment Contract - John Smith',
+      document: {
+        _id: 'doc123',
+        name: 'Employment Contract',
+        content: 'This is the document content...'
+      },
+      message: 'Please review and sign this employment contract',
+      settings: {
+        allowDecline: true
+      },
+      signers: [
+        {
+          name: 'John Smith',
+          email: 'john@example.com',
+          role: 'Signer',
+          order: 1,
+          signature: null
+        },
+        {
+          name: 'Jane Doe',
+          email: 'jane@example.com',
+          role: 'Approver',
+          order: 2,
+          signature: null
+        }
+      ]
+    },
+    signer: {
+      name: 'John Smith',
+      email: 'john@example.com',
+      role: 'Signer',
+      order: 1
+    },
+    canSign: true,
+    alreadySigned: false
+  });
+});
+
+app.post('/api/signatures/sign/:token', (req, res) => {
+  const token = req.params.token;
+  const { signatureData, signatureType } = req.body;
+  
+  // Return mock signature response
+  res.json({
+    signature: {
+      _id: 'sig123',
+      signatureData: signatureData,
+      signatureType: signatureType,
+      status: 'signed',
+      signedAt: new Date().toISOString()
+    },
+    request: {
+      _id: 'req123',
+      status: 'sent',
+      signers: [
+        {
+          name: 'John Smith',
+          email: 'john@example.com',
+          signature: 'sig123'
+        },
+        {
+          name: 'Jane Doe',
+          email: 'jane@example.com',
+          signature: null
+        }
+      ]
+    },
+    isComplete: false
+  });
+});
+
+app.post('/api/signatures/requests', (req, res) => {
+  const { documentId, name, message, signers, settings } = req.body;
+  
+  // Return a mock created signature request
+  const mockRequest = {
+    _id: 'req' + Math.floor(Math.random() * 10000),
+    name,
+    document: {
+      _id: documentId,
+      name: "Document " + documentId
+    },
+    message,
+    signers: signers.map((signer, index) => ({
+      ...signer,
+      signature: null,
+      accessToken: 'token' + Math.floor(Math.random() * 10000)
+    })),
+    status: 'draft',
+    createdAt: new Date().toISOString(),
+    settings: settings || {
+      allowDecline: true,
+      expiryDays: 30
+    }
+  };
+  
+  res.status(201).json(mockRequest);
+});
+
+app.post('/api/signatures/requests/:id/send', (req, res) => {
+  const requestId = req.params.id;
+  
+  // Return the updated request with 'sent' status
+  res.json({
+    _id: requestId,
+    status: 'sent',
+    sentAt: new Date().toISOString()
+  });
+});
+
+// Import AI service
+const aiService = require('./services/aiService');
 
 // Define AI routes
 app.post('/api/ai/identify-legal-terms', async (req, res) => {
@@ -264,26 +560,8 @@ app.post('/api/ai/identify-legal-terms', async (req, res) => {
       return res.status(400).json({ message: 'Document content is required' });
     }
     
-    // Mock response for demo
-    const mockTerms = [
-      {
-        term: "indemnification",
-        context: "The Client agrees to indemnify and hold harmless the Company...",
-        complexity: 4
-      },
-      {
-        term: "force majeure",
-        context: "Neither party shall be liable for delays caused by force majeure events...",
-        complexity: 3
-      },
-      {
-        term: "severability",
-        context: "If any provision of this Agreement is found to be invalid or unenforceable...",
-        complexity: 2
-      }
-    ];
-    
-    res.json(mockTerms);
+    const terms = await aiService.identifyLegalTerms(content);
+    res.json(terms);
   } catch (error) {
     console.error('Error identifying legal terms:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -298,15 +576,7 @@ app.post('/api/ai/explain-legal-term', async (req, res) => {
       return res.status(400).json({ message: 'Term is required' });
     }
     
-    // Mock response for demo
-    const explanation = {
-      term: term,
-      explanation: "This legal term refers to a standard clause in contracts that protects parties from liability.",
-      importance: "It's important because it establishes boundaries of responsibility between parties.",
-      implications: "Agreeing to this term may limit your ability to seek damages in certain situations.",
-      relatedTerms: ["liability", "contractual obligation", "legal remedy"]
-    };
-    
+    const explanation = await aiService.explainLegalTerm(term, context);
     res.json(explanation);
   } catch (error) {
     console.error('Error explaining legal term:', error);
@@ -322,16 +592,7 @@ app.post('/api/ai/generate-text', async (req, res) => {
       return res.status(400).json({ message: 'Prompt is required' });
     }
     
-    // Mock response for demo
-    const sampleTexts = [
-      "This document is subject to the terms and conditions outlined herein. All parties acknowledge and agree to these provisions.",
-      "The data protection measures implemented comply with relevant regulations, ensuring the security and privacy of all information processed.",
-      "In accordance with financial regulations, all transactions will be recorded and subject to audit as required by law.",
-      "This agreement constitutes the entire understanding between parties and supersedes all prior communications regarding this matter."
-    ];
-    
-    const generatedText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-    
+    const generatedText = await aiService.generateText(prompt, document);
     res.json({ generatedText });
   } catch (error) {
     console.error('Error generating text:', error);
@@ -347,49 +608,74 @@ app.post('/api/ai/suggest-rules', async (req, res) => {
       return res.status(400).json({ message: 'Template data is required' });
     }
     
-    // Mock response for demo
-    const mockRules = [
-      {
-        name: "Hide Section for Non-Commercial Use",
-        description: "Hides the commercial licensing section when document is for personal use",
-        condition: {
-          type: "simple",
-          variable: "usage_type",
-          operator: "equals",
-          value: "personal"
-        },
-        action: "hide",
-        targetVariables: ["commercial_licensing_section"]
-      },
-      {
-        name: "Show International Compliance for Global Use",
-        description: "Shows international compliance clauses when the usage region is international",
-        condition: {
-          type: "simple",
-          variable: "region",
-          operator: "contains",
-          value: "international"
-        },
-        action: "show",
-        targetVariables: ["international_compliance_section"]
-      },
-      {
-        name: "Add GDPR Text for EU Customers",
-        description: "Adds GDPR compliance text when the customer is from the EU",
-        condition: {
-          type: "simple",
-          variable: "customer_location",
-          operator: "contains",
-          value: "EU"
-        },
-        action: "insertText",
-        targetVariables: ["data_privacy_clause:This agreement complies with GDPR regulations for EU citizens."]
-      }
-    ];
-    
-    res.json({ suggestions: mockRules });
+    const suggestions = await aiService.suggestConditionalRules(template);
+    res.json({ suggestions });
   } catch (error) {
     console.error('Error suggesting rules:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// New Claude-specific endpoints
+app.post('/api/ai/summarize-document', async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ message: 'Document content is required' });
+    }
+    
+    const summary = await aiService.summarizeDocument(content);
+    res.json(summary);
+  } catch (error) {
+    console.error('Error summarizing document:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/ai/analyze-compliance', async (req, res) => {
+  try {
+    const { content, industry, jurisdiction } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ message: 'Document content is required' });
+    }
+    
+    if (!industry) {
+      return res.status(400).json({ message: 'Industry is required' });
+    }
+    
+    if (!jurisdiction) {
+      return res.status(400).json({ message: 'Jurisdiction is required' });
+    }
+    
+    const compliance = await aiService.analyzeCompliance(content, industry, jurisdiction);
+    res.json(compliance);
+  } catch (error) {
+    console.error('Error analyzing compliance:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Document analysis endpoint for variable detection
+app.post('/api/ai/analyze-document', async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ message: 'Document content is required' });
+    }
+    
+    console.log('Analyzing document for variables with Claude AI');
+    const variables = await aiService.analyzeDocument(content);
+    
+    res.json({
+      variables,
+      count: variables.length,
+      aiProvider: 'claude'
+    });
+  } catch (error) {
+    console.error('Error analyzing document:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -1096,44 +1382,33 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server error', error: err.message });
 });
 
-// In development mode, skip MongoDB connection
-if (config.server.env === 'production') {
+// Connect to MongoDB if USE_MONGODB is true in .env
+if (process.env.USE_MONGODB === 'true') {
+  console.log('Connecting to MongoDB...');
   // Connect to MongoDB
   mongoose
     .connect(config.mongodb.uri, config.mongodb.options)
     .then(() => {
-      console.log('Connected to MongoDB');
+      console.log('Connected to MongoDB at:', config.mongodb.uri);
       startServer();
     })
     .catch((err) => {
       console.error('Failed to connect to MongoDB', err);
-      console.log('Starting server without database for development...');
+      console.log('Starting server without database...');
       startServer();
     });
 } else {
-  console.log('Starting server in development mode without database...');
+  console.log('Starting server without database (USE_MONGODB not enabled)...');
   startServer();
 }
 
 function startServer() {
-  // Try using a series of ports if the default one is in use
-  const tryPort = (port) => {
-    const server = app.listen(port)
-      .on('listening', () => {
-        console.log(`Server running on port ${port}`);
-      })
-      .on('error', (err) => {
-        if (err.code === 'EADDRINUSE') {
-          console.log(`Port ${port} is busy, trying ${port + 1}...`);
-          server.close();
-          tryPort(port + 1);
-        } else {
-          console.error('Server error:', err);
-        }
-      });
-  };
-  
-  tryPort(PORT);
+  // Start server with explicit port - no auto-detection
+  app.listen(PORT, () => {
+    console.log(`Server running on fixed port ${PORT}`);
+  }).on('error', (err) => {
+    console.error('Server error:', err);
+  });
 }
 
 // Handle unhandled promise rejections

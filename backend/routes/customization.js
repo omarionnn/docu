@@ -175,30 +175,45 @@ router.post('/context/adapt', auth, async (req, res) => {
  */
 router.post('/templates/rules/suggest', auth, async (req, res) => {
   try {
-    const { templateId } = req.body;
+    const { templateId, template: templateObj } = req.body;
     
-    if (!templateId) {
-      return res.status(400).json({ message: 'Template ID is required' });
+    let template;
+    
+    // First try to get template from database if templateId is provided
+    if (templateId) {
+      try {
+        template = await Template.findById(templateId);
+        console.log('Found template in database with ID:', templateId);
+      } catch (err) {
+        console.log('Template not found in database, using provided template object');
+      }
     }
     
-    // Get the template
-    const template = await Template.findById(templateId);
+    // If template not found in DB or no ID provided, use the template object from request
+    if (!template && templateObj) {
+      template = templateObj;
+      console.log('Using template object from request');
+    }
     
+    // If we still don't have a template, return error
     if (!template) {
-      return res.status(404).json({ message: 'Template not found' });
+      return res.status(400).json({ message: 'Template data is required' });
     }
     
-    // Check if user has access to this template
-    if (!template.isPublic && template.owner.toString() !== req.user._id.toString()) {
+    // For database templates, check user access
+    if (template._id && template.owner && !template.isPublic && 
+        template.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Access denied' });
     }
     
-    // Get rule suggestions
+    // Get rule suggestions from Claude AI
+    console.log('Requesting rule suggestions from Claude AI');
     const suggestions = await aiService.suggestConditionalRules(template);
     
     res.json({
       template,
-      suggestions
+      suggestions,
+      aiProvider: 'claude'
     });
   } catch (error) {
     console.error('Error suggesting rules:', error);
@@ -299,6 +314,100 @@ router.put('/profile', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/customization/document/summarize
+ * @desc Summarize a document using Claude AI
+ * @access Private
+ */
+router.post('/document/summarize', auth, async (req, res) => {
+  try {
+    const { documentId } = req.body;
+    
+    if (!documentId) {
+      return res.status(400).json({ message: 'Document ID is required' });
+    }
+    
+    // Get the document
+    const document = await Document.findById(documentId);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    // Check if user has access to this document
+    if (document.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Summarize the document using Claude AI
+    console.log('Requesting document summary from Claude AI');
+    const summary = await aiService.summarizeDocument(document.content);
+    
+    res.json({
+      document: {
+        _id: document._id,
+        name: document.name
+      },
+      summary,
+      aiProvider: 'claude'
+    });
+  } catch (error) {
+    console.error('Error summarizing document with Claude:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/customization/document/compliance
+ * @desc Analyze document compliance using Claude AI
+ * @access Private
+ */
+router.post('/document/compliance', auth, async (req, res) => {
+  try {
+    const { documentId, industry, jurisdiction } = req.body;
+    
+    if (!documentId) {
+      return res.status(400).json({ message: 'Document ID is required' });
+    }
+    
+    if (!industry) {
+      return res.status(400).json({ message: 'Industry is required' });
+    }
+    
+    if (!jurisdiction) {
+      return res.status(400).json({ message: 'Jurisdiction is required' });
+    }
+    
+    // Get the document
+    const document = await Document.findById(documentId);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    // Check if user has access to this document
+    if (document.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Analyze document compliance using Claude AI
+    console.log('Requesting compliance analysis from Claude AI');
+    const compliance = await aiService.analyzeCompliance(document.content, industry, jurisdiction);
+    
+    res.json({
+      document: {
+        _id: document._id,
+        name: document.name
+      },
+      compliance,
+      aiProvider: 'claude'
+    });
+  } catch (error) {
+    console.error('Error analyzing compliance with Claude:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
