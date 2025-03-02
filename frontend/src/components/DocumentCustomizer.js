@@ -107,10 +107,8 @@ const DocumentCustomizer = ({ documentId, template: initialTemplate, onDocumentU
     
     // If connection refused, try alternative ports (helps in development)
     if (error.message && error.message.includes('Network Error')) {
-      // Try alternative API ports
-      const currentPort = window.location.port;
-      const serverPort = currentPort === '3000' ? '5001' : 
-                        currentPort === '3001' ? '5002' : '5003';
+      // Try alternative API ports - start with 5005 first (our Claude server)
+      const serverPort = '5005';
       
       toast.info(`Trying to connect to API on port ${serverPort}...`);
       axios.defaults.baseURL = `http://localhost:${serverPort}`;
@@ -171,8 +169,11 @@ const DocumentCustomizer = ({ documentId, template: initialTemplate, onDocumentU
     
     try {
       setIsLoadingRules(true);
+      
+      // Use real AI to suggest rules based on the template
       const response = await axios.post('/api/customization/templates/rules/suggest', {
-        templateId: template._id
+        templateId: template._id || template.id,
+        template: template // Send the full template object for AI analysis
       });
       
       setSuggestedRules(response.data.suggestions);
@@ -181,14 +182,70 @@ const DocumentCustomizer = ({ documentId, template: initialTemplate, onDocumentU
       if (response.data.suggestions.length === 0) {
         toast.info('No rule suggestions found for this template.');
       } else {
-        toast.success(`${response.data.suggestions.length} rule suggestions found.`);
+        toast.success(`${response.data.suggestions.length} rule suggestions found from AI.`);
       }
     } catch (error) {
+      console.error('Error suggesting rules:', error);
+      
       if (handleApiError(error, 'suggest rules')) {
         // Try again with new port configuration after a short delay
         setTimeout(() => suggestRules(), 1000);
       } else {
+        // Fall back to mock suggestions if the API call fails
+        const mockSuggestions = [
+          {
+            name: "Hide Probation Period for Senior Roles",
+            description: "Hides the probation period section for senior level positions",
+            condition: {
+              type: "simple",
+              variable: "position_title",
+              operator: "contains",
+              value: "Senior"
+            },
+            action: "hide",
+            targetVariables: ["employment_probation"]
+          },
+          {
+            name: "Show Remote Work Section",
+            description: "Shows remote work clauses when the employment type includes remote work",
+            condition: {
+              type: "simple",
+              variable: "work_location",
+              operator: "contains",
+              value: "Remote"
+            },
+            action: "show",
+            targetVariables: ["remote_work_clause"]
+          },
+          {
+            name: "Add Performance Bonus for Sales Positions",
+            description: "Adds performance bonus text for sales positions",
+            condition: {
+              type: "simple",
+              variable: "position_title",
+              operator: "contains",
+              value: "Sales"
+            },
+            action: "insertText",
+            targetVariables: ["benefits_description:Standard benefits package plus commission-based performance bonuses based on sales targets."]
+          },
+          {
+            name: "Add Non-Compete for Technical Roles",
+            description: "Adds non-compete clause for technical positions",
+            condition: {
+              type: "simple",
+              variable: "position_title",
+              operator: "contains",
+              value: "Developer"
+            },
+            action: "show",
+            targetVariables: ["non_compete_clause"]
+          }
+        ];
+        
+        setSuggestedRules(mockSuggestions);
         setIsLoadingRules(false);
+        toast.info('Using mock suggestions (API call failed)');
       }
     }
   };
